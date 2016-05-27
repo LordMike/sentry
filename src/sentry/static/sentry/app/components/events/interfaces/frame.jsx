@@ -27,7 +27,7 @@ const Frame = React.createClass({
     TooltipMixin({
       html: true,
       selector: '.tip',
-      trigger: 'click'
+      trigger: 'hover'
     })
   ],
 
@@ -67,34 +67,17 @@ const Frame = React.createClass({
   renderOriginalSourceInfo() {
     let data = this.props.data;
 
-    // TODO: is there a way to render a react element as a string? All the
-    // documented methods don't exist on the client (meant for server rendering)
-    let escapedAbsPath = isUrl(data.origAbsPath)
-      ? `<a href="${_.escape(data.origAbsPath)}">${_.escape(data.origAbsPath)}</a>`
-      : _.escape(data.origAbsPath);
-
-    let originalFilenameText = t('Original Filename');
-    let lineNumberText = t('Line Number');
-    let columnNumberText = t('Column Number');
-    let functionText = t('Function');
     let sourceMapText = t('Source Map');
 
     let out = `
     <div>
-      <strong>${originalFilenameText}</strong><br/>
-      ${escapedAbsPath}<br/>
-      <strong>${lineNumberText}</strong><br/>
-      ${_.escape(data.origLineNo)}<br/>
-      <strong>${columnNumberText}</strong><br/>
-      ${_.escape(data.origColNo)}<br/>
-      <strong>${functionText}</strong><br/>
-      ${_.escape(data.origFunction)}<br/>
       <strong>${sourceMapText}</strong><br/>`;
 
     // mapUrl not always present; e.g. uploaded source maps
-    out += data.mapUrl
-      ? `<a href="${_.escape(data.mapUrl)}">${_.escape(data.map)}<br/>`
-      : `${_.escape(data.map)}<br/>`;
+    if (data.mapUrl)
+      out += `${_.escape(data.mapUrl)}<br/>`;
+    else
+      out += `${_.escape(data.map)}<br/>`;
 
     out += '</div>';
 
@@ -155,18 +138,46 @@ const Frame = React.createClass({
     return title;
   },
 
+  renderContextLine(line, activeLineNo) {
+    let liClassName = 'expandable';
+    if (line[0] === activeLineNo) {
+      liClassName += ' active';
+    }
+
+    let lineWs;
+    let lineCode;
+    if (defined(line[1]) && line[1].match) {
+      [, lineWs, lineCode] = line[1].match(/^(\s*)(.*?)$/m);
+    } else {
+      lineWs = '';
+      lineCode = '';
+    }
+    return (
+      <li className={liClassName} key={line[0]}>
+        <span className="ws">{
+        lineWs}</span><span className="contextline">{lineCode
+        }</span>
+      </li>
+    );
+  },
+
   renderContext() {
     let data = this.props.data;
     let context = '';
+    let {isExpanded} = this.state;
 
     let outerClassName = 'context';
-    if (this.state.isExpanded) {
+    if (isExpanded) {
       outerClassName += ' expanded';
     }
 
     let hasContextSource = this.hasContextSource();
     let hasContextVars = this.hasContextVars();
     let expandable = this.isExpandable();
+
+    let contextLines = isExpanded
+      ? data.context
+      : data.context && data.context.filter(l => l[0] === data.lineNo);
 
     if (hasContextSource || hasContextVars) {
       let startLineNo = hasContextSource ? data.context[0][0] : '';
@@ -177,28 +188,8 @@ const Frame = React.createClass({
           <li className={expandable ? 'expandable error' : 'error'}
               key="errors">{data.errors.join(', ')}</li>
           }
-          {(data.context || []).map((line) => {
-            let liClassName = 'expandable';
-            if (line[0] === data.lineNo) {
-              liClassName += ' active';
-            }
 
-            let lineWs;
-            let lineCode;
-            if (defined(line[1]) && line[1].match) {
-              [, lineWs, lineCode] = line[1].match(/^(\s*)(.*?)$/m);
-            } else {
-              lineWs = '';
-              lineCode = '';
-            }
-            return (
-              <li className={liClassName} key={line[0]}>
-                <span className="ws">{
-                lineWs}</span><span className="contextline">{lineCode
-                }</span>
-              </li>
-            );
-          })}
+          {data.context && contextLines.map(line => this.renderContextLine(line, data.lineNo))}
 
           {hasContextVars &&
             <FrameVariables data={data.vars} key="vars" />
