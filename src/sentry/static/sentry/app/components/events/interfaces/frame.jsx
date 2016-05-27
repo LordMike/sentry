@@ -138,46 +138,18 @@ const Frame = React.createClass({
     return title;
   },
 
-  renderContextLine(line, activeLineNo) {
-    let liClassName = 'expandable';
-    if (line[0] === activeLineNo) {
-      liClassName += ' active';
-    }
-
-    let lineWs;
-    let lineCode;
-    if (defined(line[1]) && line[1].match) {
-      [, lineWs, lineCode] = line[1].match(/^(\s*)(.*?)$/m);
-    } else {
-      lineWs = '';
-      lineCode = '';
-    }
-    return (
-      <li className={liClassName} key={line[0]}>
-        <span className="ws">{
-        lineWs}</span><span className="contextline">{lineCode
-        }</span>
-      </li>
-    );
-  },
-
   renderContext() {
     let data = this.props.data;
     let context = '';
-    let {isExpanded} = this.state;
 
     let outerClassName = 'context';
-    if (isExpanded) {
+    if (this.state.isExpanded) {
       outerClassName += ' expanded';
     }
 
     let hasContextSource = this.hasContextSource();
     let hasContextVars = this.hasContextVars();
     let expandable = this.isExpandable();
-
-    let contextLines = isExpanded
-      ? data.context
-      : data.context && data.context.filter(l => l[0] === data.lineNo);
 
     if (hasContextSource || hasContextVars) {
       let startLineNo = hasContextSource ? data.context[0][0] : '';
@@ -188,8 +160,28 @@ const Frame = React.createClass({
           <li className={expandable ? 'expandable error' : 'error'}
               key="errors">{data.errors.join(', ')}</li>
           }
+          {(data.context || []).map((line) => {
+            let liClassName = 'expandable';
+            if (line[0] === data.lineNo) {
+              liClassName += ' active';
+            }
 
-          {data.context && contextLines.map(line => this.renderContextLine(line, data.lineNo))}
+            let lineWs;
+            let lineCode;
+            if (defined(line[1]) && line[1].match) {
+              [, lineWs, lineCode] = line[1].match(/^(\s*)(.*?)$/m);
+            } else {
+              lineWs = '';
+              lineCode = '';
+            }
+            return (
+              <li className={liClassName} key={line[0]}>
+                <span className="ws">{
+                  lineWs}</span><span className="contextline">{lineCode
+              }</span>
+              </li>
+            );
+          })}
 
           {hasContextVars &&
             <FrameVariables data={data.vars} key="vars" />
